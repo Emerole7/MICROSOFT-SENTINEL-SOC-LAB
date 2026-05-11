@@ -53,8 +53,6 @@ let WindowsEvents = SecurityEvent
     | evaluate ipv4_lookup(GeoIPDB_FULL, IpAddress, network);
 WindowsEvents
 
-## Key Resources
 
-GeoIP CSV: https://raw.githubusercontent.com/joshmadakor1/lognpacific-public/refs/heads/main/misc/geoip-summarized.csv
-KQL learning (free): https://kc7cyber.com/
-Attack map workbook JSON: workbooks/attack-map.json
+
+
