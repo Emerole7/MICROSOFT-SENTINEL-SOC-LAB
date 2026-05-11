@@ -2,6 +2,8 @@
 This is a visual representation showing a map highlighting areas of attack. 
  To set up an attack map, in microsoft defender we navigate to sentinel, threat management, workbook tab
  We create a new workbook, in the advance editor tab we clear the table and add the json:
+
+## Attack map workbook
  {
 	"type": 3,
 	"content": {
