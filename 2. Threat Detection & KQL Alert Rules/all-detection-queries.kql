@@ -1,0 +1,97 @@
+// ── BRUTE FORCE ──────────────────────────────────────────────────
+// T1110.001 - Password Guessing
+// Threshold: 10+ failed logins from same IP in 10 minutes
+
+SecurityEvent
+| where EventID == 4625
+| where TimeGenerated > ago(10m)
+| summarize
+    FailedAttempts = count(),
+    FirstAttempt = min(TimeGenerated),
+    LastAttempt = max(TimeGenerated),
+    AccountsTargeted = dcount(TargetUserName),
+    AttackedHost = any(Computer)
+    by IpAddress
+| where FailedAttempts >= 10
+| extend AttackDuration = datetime_diff('minute', LastAttempt, FirstAttempt)
+| project IpAddress, FailedAttempts, AccountsTargeted, AttackedHost, AttackDuration
+
+
+// ── BRUTE FORCE SUCCESS ───────────────────────────────────────────
+// T1078 - Valid Accounts
+// Successful login from an IP that was brute forcing within the hour
+
+let BruteForceIPs = SecurityEvent
+    | where EventID == 4625
+    | where TimeGenerated > ago(1h)
+    | summarize FailedCount = count() by IpAddress
+    | where FailedCount >= 5;
+SecurityEvent
+| where EventID == 4624
+| where LogonType == 10 or LogonType == 3
+| join kind=inner BruteForceIPs on IpAddress
+| project TimeGenerated, Account, IpAddress, FailedCount, Computer
+
+
+// ── PRIVILEGE ESCALATION ──────────────────────────────────────────
+// T1098 - Account Manipulation
+// User added to local Administrators group
+
+SecurityEvent
+| where EventID == 4732
+| where TargetUserName has "Administrators"
+| project TimeGenerated, SubjectUserName, MemberName, TargetUserName, Computer
+
+
+// ── LATERAL MOVEMENT ─────────────────────────────────────────────
+// T1021 - Remote Services
+// Admin login from IP not seen in last 30 days
+
+let KnownAdminIPs = SecurityEvent
+    | where EventID == 4624
+    | where LogonType == 10 or LogonType == 3
+    | where Account has "Administrator" or Account has "admin"
+    | where TimeGenerated between (ago(30d) .. ago(1h))
+    | summarize KnownIPs = make_set(IpAddress) by Account;
+SecurityEvent
+| where EventID == 4624
+| where LogonType == 10 or LogonType == 3
+| where Account has "Administrator" or Account has "admin"
+| where TimeGenerated > ago(1h)
+| join kind=leftouter KnownAdminIPs on Account
+| where not(IpAddress in (KnownIPs))
+| where isnotempty(IpAddress)
+| project TimeGenerated, Account, IpAddress, Computer
+
+
+// ── ACCOUNT ENUMERATION ───────────────────────────────────────────
+// T1087 - Account Discovery
+// 5+ unique usernames tried from same IP in 15 minutes
+
+SecurityEvent
+| where EventID == 4625
+| where TimeGenerated > ago(15m)
+| summarize
+    UniqueUsernames = dcount(TargetUserName),
+    AttemptedUsernames = make_set(TargetUserName),
+    TotalAttempts = count()
+    by IpAddress
+| where UniqueUsernames >= 5
+
+
+// ── PASSWORD SPRAY ────────────────────────────────────────────────
+// T1110.003 - Password Spraying
+// Low attempts across many accounts (stays under lockout threshold)
+
+SecurityEvent
+| where EventID == 4625
+| where TimeGenerated > ago(1h)
+| summarize
+    TargetedAccounts = dcount(TargetUserName),
+    TotalAttempts = count(),
+    AccountList = make_set(TargetUserName, 20)
+    by IpAddress
+| where TargetedAccounts >= 10
+| extend AttemptsPerAccount = round(toreal(TotalAttempts) / toreal(TargetedAccounts), 1)
+| where AttemptsPerAccount <= 3
+| project IpAddress, TargetedAccounts, TotalAttempts, AttemptsPerAccount, AccountList
