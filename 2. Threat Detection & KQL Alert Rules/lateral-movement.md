@@ -1,4 +1,4 @@
-# Rule: Lateral Movement — Admin Login from New IP
+# Rule: Lateral Movement: Admin Login from New IP
 
 | Field | Value |
 | --- | --- |
@@ -9,7 +9,7 @@
 | --- | --- |
 
 ## Description
-Detects an admin account logging in from an IP not seen in the past 30 days. Baseline-deviation approach catches stolen credentials and lateral movement even when the login itself looks legitimate.
+Detects an admin account logging in from an IP not seen in the past 30 days. Baseline deviation approach catches stolen credentials and lateral movement even when the login itself looks legitimate.
 
 ## KQL
 
@@ -42,6 +42,6 @@ SecurityEvent
 | Host | HostName | Computer |
 
 ## Tuning Notes
-- The 30-day baseline requires 30 days of log data to be meaningful
+- The 30day baseline requires 30 days of log data to be meaningful
 - Expect false positives early in deployment as the baseline builds
 - Consider whitelisting your own admin IP during initial testing
