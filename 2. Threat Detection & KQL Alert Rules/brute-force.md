@@ -1,4 +1,4 @@
-# Rule: Brute Force — Multiple Failed Logins from Single IP
+# Rule: Brute Force Multiple Failed Logins from Single IP
 
 | Field | Value |
 | --- | --- |
