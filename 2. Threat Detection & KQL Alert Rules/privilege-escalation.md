@@ -1,4 +1,4 @@
-# Rule: Privilege Escalation — User Added to Administrators Group
+# Rule: Privilege Escalation User Added to Administrators Group
 
 | Field | Value |
 | --- | --- |
@@ -9,7 +9,7 @@
 | Lookup window | Last 1 hour |
 
 ## Description
-Detects Event ID 4732 — a member was added to a security-enabled local group. Filtered to the Administrators group. Attackers who gain low-privilege access commonly escalate by adding a backdoor account to local Administrators.
+Detects Event ID 4732 a member was added to a security enabled local group. Filtered to the Administrators group. Attackers who gain low privilege access commonly escalate by adding a backdoor account to local Administrators.
 
 ## KQL
 
