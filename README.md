@@ -37,6 +37,9 @@ SOAR concepts, Logic App playbook design and automation rule implementation
 | Discovery             | T1082 System Information Discovery  | Recon commands hunt       |
 | Persistence           |  T1136.001 Create Local Account     | Dormant accounts hunt     |
 
+## Phase 1 Honeypot
+
+we deploy an intentionally exposed Windows VM (honeypot), forwar Windows Security Events to Microsoft Sentinel via the Azure Monitor Agent, enriche login attempts with geographic data, and visualize global attack origins on a live attack map.
 
 ## Phase 2  Threat Detection & KQL Analytics Rules
 
