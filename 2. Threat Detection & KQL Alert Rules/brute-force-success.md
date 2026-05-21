@@ -1,4 +1,4 @@
-# Rule: Brute Force Success — Valid Account Compromise
+# Rule: Brute Force Success Valid Account Compromise
 
 | Field | Value |
 | --- | --- |
