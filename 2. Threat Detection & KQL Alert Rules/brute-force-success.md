@@ -9,7 +9,7 @@
 | Lookup window | Last 1 hour |
 
 ## Description
-Detects a successful login (Event ID 4624) from an IP that previously generated 5+ failed logins within the same hour. Indicates a brute force attempt may have succeeded. This is a chained detection — two events correlated together for high confidence.
+Detects a successful login (Event ID 4624) from an IP that previously generated 5+ failed logins within the same hour. Indicates a brute force attempt may have succeeded. This is a chained detection, two events correlated together for high confidence.
 
 ## KQL
 
