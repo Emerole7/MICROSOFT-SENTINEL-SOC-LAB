@@ -38,4 +38,4 @@ SecurityEvent
 | Host | HostName | Computer |
 
 ## Why This Matters
-A brute force alone is noisy and common. A brute force FOLLOWED by a successful login is a critical, high-confidence signal that the attacker gained access.
+A brute force alone is noisy and common. A brute force FOLLOWED by a successful login is a critical, high confidence signal that the attacker gained access.

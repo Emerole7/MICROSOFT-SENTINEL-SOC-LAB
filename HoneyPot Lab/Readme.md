@@ -58,7 +58,7 @@ kqlSecurityEvent
 
 | where EventID == 4625
 
-GeoIP-enriched attack map query:
+GeoIP enriched attack map query:
 
 kqllet GeoIPDB_FULL = _GetWatchlist("geoip");
 

@@ -1,0 +1,33 @@
+// HUNT 5: Post Compromise Reconnaissance Commands
+// Hypothesis: An attacker who gained access ran enumeration commands
+//             (whoami, ipconfig, net user) to understand the environment.
+// MITRE: T1082 System Information Discovery
+//
+// PREREQUISITE: Enable process creation auditing on the VM first:
+//   auditpol /set /subcategory:"Process Creation" /success:enable /failure:enable
+// Then update your DCR to collect Event ID 4688.
+
+SecurityEvent
+| where EventID == 4688
+| where CommandLine has_any (
+    "whoami", "ipconfig", "netstat", "net user",
+    "net localgroup", "systeminfo", "tasklist",
+    "reg query", "wmic", "hostname", "arp",
+    "route print", "nslookup", "ping"
+)
+| project
+    TimeGenerated,
+    Account,
+    Process,
+    CommandLine,
+    Computer,
+    ParentProcessName,
+    MITRE = "T1082 - System Information Discovery"
+| order by TimeGenerated desc
+
+// FINDINGS: Without 4688 logging enabled, this query returns 0 rows. 
+// After enabling the audit policy and waiting for new events,
+// this query will show any recon commands run on the VM.
+//
+// GAP: No analytics rule exists for this.
+// RECOMMENDATION: Promote this to an analytics rule once 4688 events are flowing.

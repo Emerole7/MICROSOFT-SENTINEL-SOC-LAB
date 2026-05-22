@@ -1,0 +1,23 @@
+// HUNT 3: High Volume Connections (C2 Beaconing Indicator)
+// Hypothesis: A compromised machine is beaconing to a C2 server,
+//             producing unusually high outbound connection counts.
+// MITRE: T1071 Application Layer Protocol
+
+// NOTE: This query uses SecurityEvent as a proxy.
+// Full fidelity requires NSG flow logs or Azure Network Watcher.
+// To enable: Diagnostics > NSG > Flow Logs > Enable
+
+SecurityEvent
+| where EventID == 4624 or EventID == 4625
+| summarize
+    ConnectionCount = count(),
+    UniqueSourceIPs = dcount(IpAddress),
+    IPList = make_set(IpAddress, 20)
+    by Computer, bin(TimeGenerated, 1h)
+| where UniqueSourceIPs > 20
+| order by UniqueSourceIPs desc
+
+// FINDINGS: High unique IP counts in a short window can indicate scanning
+// or beaconing behavior. 
+// GAP: Without network flow logs this hunt has limited fidelity.
+// RECOMMENDATION: Enable NSG flow logs and add AzureNetworkAnalytics_CL table.

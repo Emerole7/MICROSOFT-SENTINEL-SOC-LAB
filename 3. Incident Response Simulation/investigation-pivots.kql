@@ -1,0 +1,60 @@
+// Investigation pivot queries used during incident triage
+
+
+// ── What did this IP do? (full activity pivot) ────────────────────
+SecurityEvent
+| where IpAddress == "5.181.86.60"
+| order by TimeGenerated desc
+| project TimeGenerated, EventID, Account, IpAddress, Activity, Computer
+
+
+// ── Full timeline for a specific account ─────────────────────────
+SecurityEvent
+| where Account == "PAYROLL-DB-EAST\pr07"
+| order by TimeGenerated desc
+| project TimeGenerated, EventID, Activity, IpAddress, Computer
+
+
+// ── Everything that happened on the host around the alert time ────
+SecurityEvent
+| where Computer == "PAYROLL-DB-EAST"
+| where TimeGenerated between (ago(2h) .. now())
+| order by TimeGenerated desc
+| project TimeGenerated, EventID, Activity, Account, IpAddress
+
+
+// ── Did any brute force IP eventually succeed? ───────────────────
+let BruteIPs = SecurityEvent
+    | where EventID == 4625
+    | where TimeGenerated > ago(24h)
+    | summarize count() by IpAddress
+    | where count_ >= 5
+    | project IpAddress;
+SecurityEvent
+| where EventID == 4624
+| where IpAddress in (BruteIPs)
+| project TimeGenerated, Account, IpAddress, Computer, LogonTypeName
+
+
+// ── Accounts created in the last 24 hours ────────────────────────
+SecurityEvent
+| where EventID == 4720
+| where TimeGenerated > ago(24h)
+| project TimeGenerated, TargetUserName, SubjectUserName, Computer
+
+
+// ── Group membership changes in the last 24 hours ────────────────
+SecurityEvent
+| where EventID == 4732 or EventID == 4733
+| where TimeGenerated > ago(24h)
+| project TimeGenerated, EventID, SubjectUserName, MemberName, TargetUserName, Computer
+
+
+// ── Failed logins by country (GeoIP enriched) ────────────────────
+let GeoIPDB = _GetWatchlist("geoip");
+SecurityEvent
+| where EventID == 4625
+| where TimeGenerated > ago(24h)
+| evaluate ipv4_lookup(GeoIPDB, IpAddress, network)
+| summarize Attempts = count() by country
+| order by Attempts desc

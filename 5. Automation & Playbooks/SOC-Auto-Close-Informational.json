@@ -1,0 +1,59 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "description": "Sentinel playbook: Auto-close Informational severity incidents to reduce analyst queue noise."
+  },
+  "parameters": {
+    "PlaybookName": {
+      "defaultValue": "SOC-Auto-Close-Informational",
+      "type": "String"
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Logic/workflows",
+      "apiVersion": "2017-07-01",
+      "name": "[parameters('PlaybookName')]",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "definition": {
+          "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+          "triggers": {
+            "When_a_Microsoft_Sentinel_incident_is_created": {
+              "type": "ApiConnectionWebhook",
+              "inputs": {
+                "host": { "connection": { "name": "@parameters('$connections')['azuresentinel']['connectionId']" } },
+                "path": "/incident-creation"
+              }
+            }
+          },
+          "actions": {
+            "Check_Informational": {
+              "type": "If",
+              "expression": {
+                "and": [{ "equals": ["@triggerBody()?['object']?['properties']?['severity']", "Informational"] }]
+              },
+              "actions": {
+                "Close_Incident": {
+                  "type": "ApiConnection",
+                  "inputs": {
+                    "host": { "connection": { "name": "@parameters('$connections')['azuresentinel']['connectionId']" } },
+                    "method": "put",
+                    "path": "/Incidents",
+                    "body": {
+                      "incidentArmId": "@triggerBody()?['object']?['id']",
+                      "status": "Closed",
+                      "classification": "BenignPositive",
+                      "classificationComment": "Auto-closed by playbook: Informational severity — not requiring analyst review."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

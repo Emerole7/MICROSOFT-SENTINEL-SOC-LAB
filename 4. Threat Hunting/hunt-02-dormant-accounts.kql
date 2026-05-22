@@ -1,0 +1,22 @@
+// HUNT 2: Dormant Accounts — Created But Never Logged In
+// Hypothesis: An attacker created a backdoor account but hasn't used it yet.
+// MITRE: T1136.001  Create Account: Local Account
+
+let CreatedAccounts = SecurityEvent
+    | where EventID == 4720
+    | project CreatedTime = TimeGenerated,
+              CreatedAccount = TargetUserName,
+              CreatedBy = SubjectUserName,
+              Host = Computer;
+let LoggedInAccounts = SecurityEvent
+    | where EventID == 4624
+    | summarize LastLogin = max(TimeGenerated) by Account;
+CreatedAccounts
+| join kind=leftouter LoggedInAccounts on $left.CreatedAccount == $right.Account
+| where isempty(LastLogin)
+| project CreatedTime, CreatedAccount, CreatedBy, Host
+| order by CreatedTime desc
+
+
+// In production, any unknown account here is high priority.
+// GAP: No alert exists for accounts created but unused after X hours.

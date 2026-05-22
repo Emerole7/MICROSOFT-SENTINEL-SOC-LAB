@@ -1,0 +1,111 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "description": "Sentinel playbook: Auto-block attacker IP in NSG when a Brute Force incident is created.",
+    "mitre": "T1110.001 response"
+  },
+  "parameters": {
+    "PlaybookName": {
+      "defaultValue": "SOC-Block-IP-In-NSG",
+      "type": "String"
+    },
+    "NSGResourceGroup": {
+      "type": "String",
+      "defaultValue": "SOC-Honeypot-RG"
+    },
+    "NSGName": {
+      "type": "String",
+      "metadata": { "description": "Name of the Network Security Group to add block rules to." }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Logic/workflows",
+      "apiVersion": "2017-07-01",
+      "name": "[parameters('PlaybookName')]",
+      "location": "[resourceGroup().location]",
+      "identity": { "type": "SystemAssigned" },
+      "properties": {
+        "definition": {
+          "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+          "comment": "Workflow steps: 1) Trigger on incident creation. 2) Parse IP entities. 3) For each IP entity, create a Deny rule in the NSG. 4) Add comment to the Sentinel incident.",
+          "triggers": {
+            "When_a_Microsoft_Sentinel_incident_is_created": {
+              "type": "ApiConnectionWebhook",
+              "inputs": {
+                "host": { "connection": { "name": "@parameters('$connections')['azuresentinel']['connectionId']" } },
+                "path": "/incident-creation"
+              }
+            }
+          },
+          "actions": {
+            "Parse_Entities": {
+              "type": "ParseJson",
+              "inputs": {
+                "content": "@triggerBody()?['object']?['properties']?['relatedEntities']",
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "kind": { "type": "string" },
+                      "properties": {
+                        "type": "object",
+                        "properties": { "address": { "type": "string" } }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "For_Each_Entity": {
+              "type": "Foreach",
+              "foreach": "@body('Parse_Entities')",
+              "actions": {
+                "Check_If_IP_Entity": {
+                  "type": "If",
+                  "expression": { "and": [{ "equals": ["@items('For_Each_Entity')?['kind']", "Ip"] }] },
+                  "actions": {
+                    "Block_IP_In_NSG": {
+                      "type": "Http",
+                      "inputs": {
+                        "method": "PUT",
+                        "uri": "[concat('https://management.azure.com/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('NSGResourceGroup'), '/providers/Microsoft.Network/networkSecurityGroups/', parameters('NSGName'), '/securityRules/Block-@{items(''For_Each_Entity'')?[''properties'']?[''address'']}?api-version=2021-02-01')]",
+                        "authentication": { "type": "ManagedServiceIdentity" },
+                        "body": {
+                          "properties": {
+                            "priority": 100,
+                            "protocol": "*",
+                            "access": "Deny",
+                            "direction": "Inbound",
+                            "sourceAddressPrefix": "@{items('For_Each_Entity')?['properties']?['address']}",
+                            "sourcePortRange": "*",
+                            "destinationAddressPrefix": "*",
+                            "destinationPortRange": "*"
+                          }
+                        }
+                      }
+                    },
+                    "Add_Comment_To_Incident": {
+                      "type": "ApiConnection",
+                      "inputs": {
+                        "host": { "connection": { "name": "@parameters('$connections')['azuresentinel']['connectionId']" } },
+                        "method": "post",
+                        "path": "/Comments",
+                        "body": {
+                          "incidentArmId": "@triggerBody()?['object']?['id']",
+                          "message": "Automated response executed: IP @{items('For_Each_Entity')?['properties']?['address']} has been blocked in NSG @{parameters('NSGName')} with a Deny inbound rule."
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

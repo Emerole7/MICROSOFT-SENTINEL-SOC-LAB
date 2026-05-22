@@ -10,7 +10,7 @@
 | Threshold | 10+ failed attempts from same IP |
 
 ## Description
-Detects when a single IP generates 10 or more failed RDP or network login attempts within a 10-minute window. Characteristic of automated brute force tools (Hydra, Medusa, custom scripts).
+Detects when a single IP generates 10 or more failed RDP or network login attempts within a 10 minute window. Characteristic of automated brute force tools (Hydra, Medusa, custom scripts).
 
 ## KQL
 

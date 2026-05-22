@@ -1,0 +1,84 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "description": "Sentinel playbook: Send email notification when a High severity incident is created.",
+    "mitre": "Detection Response"
+  },
+  "parameters": {
+    "PlaybookName": {
+      "defaultValue": "SOC-Notify-On-Incident",
+      "type": "String"
+    },
+    "NotificationEmail": {
+      "type": "String",
+      "metadata": { "description": "Email address to send High severity alerts to." }
+    }
+  },
+  "variables": {
+    "SentinelConnectionName": "[concat('azuresentinel-', parameters('PlaybookName'))]",
+    "Office365ConnectionName": "[concat('office365-', parameters('PlaybookName'))]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Logic/workflows",
+      "apiVersion": "2017-07-01",
+      "name": "[parameters('PlaybookName')]",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "definition": {
+          "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+          "triggers": {
+            "When_a_Microsoft_Sentinel_incident_is_created": {
+              "type": "ApiConnectionWebhook",
+              "inputs": {
+                "host": { "connection": { "name": "@parameters('$connections')['azuresentinel']['connectionId']" } },
+                "path": "/incident-creation"
+              }
+            }
+          },
+          "actions": {
+            "Check_if_High_Severity": {
+              "type": "If",
+              "expression": {
+                "and": [{ "equals": ["@triggerBody()?['object']?['properties']?['severity']", "High"] }]
+              },
+              "actions": {
+                "Send_Email_Notification": {
+                  "type": "ApiConnection",
+                  "inputs": {
+                    "host": { "connection": { "name": "@parameters('$connections')['office365']['connectionId']" } },
+                    "method": "post",
+                    "path": "/v2/Mail",
+                    "body": {
+                      "To": "[parameters('NotificationEmail')]",
+                      "Subject": "[HIGH ALERT] Sentinel Incident: @{triggerBody()?['object']?['properties']?['title']}",
+                      "Body": "<p>A new HIGH severity incident has been created in Microsoft Sentinel.</p><p><b>Incident:</b> @{triggerBody()?['object']?['properties']?['title']}<br><b>Severity:</b> @{triggerBody()?['object']?['properties']?['severity']}<br><b>Status:</b> @{triggerBody()?['object']?['properties']?['status']}<br><b>Time:</b> @{triggerBody()?['object']?['properties']?['createdTimeUtc']}</p><p><b>Description:</b><br>@{triggerBody()?['object']?['properties']?['description']}</p><p><a href='https://portal.azure.com/#blade/Microsoft_Azure_Security_Insights/MainMenuBlade/Incidents'>View in Sentinel</a></p>",
+                      "IsHtml": true
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": {
+          "$connections": {
+            "value": {
+              "azuresentinel": {
+                "connectionId": "[resourceId('Microsoft.Web/connections', variables('SentinelConnectionName'))]",
+                "connectionName": "[variables('SentinelConnectionName')]",
+                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azuresentinel')]"
+              },
+              "office365": {
+                "connectionId": "[resourceId('Microsoft.Web/connections', variables('Office365ConnectionName'))]",
+                "connectionName": "[variables('Office365ConnectionName')]",
+                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/office365')]"
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

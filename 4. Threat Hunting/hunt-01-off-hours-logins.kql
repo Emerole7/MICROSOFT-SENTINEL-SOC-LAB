@@ -1,0 +1,19 @@
+// HUNT 1: Off-Hours Remote Logins
+// Hypothesis: An attacker using valid credentials would log in at off-hours
+//             (2-5am) when the legitimate user is asleep.
+// MITRE: T1078 - Valid Accounts
+// Saved in: Sentinel > Threat Management > Hunting
+
+SecurityEvent
+| where EventID == 4624
+| where LogonType == 10 or LogonType == 3
+| extend HourOfDay = hourofday(TimeGenerated)
+| where HourOfDay between (0 .. 5)
+| summarize
+    LoginCount = count(),
+    Accounts = make_set(Account),
+    SourceIPs = make_set(IpAddress)
+    by HourOfDay, Computer
+| order by HourOfDay asc
+
+
